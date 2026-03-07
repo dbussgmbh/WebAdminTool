@@ -1,0 +1,61 @@
+/* Dense layout */
+:host([theme~="dense"]) {
+    font-size: var(--lumo-font-size-xxs);
+}
+
+:host([theme~="dense"]) [part~="cell"] {
+    min-height: var(--lumo-size-xxs);
+}
+
+:host([theme~="dense"]) [part~="cell"] ::slotted(vaadin-grid-cell-content) {
+    padding: 2px var(--lumo-space-s);
+}
+
+:host([theme~="dense"]:not([theme~="no-row-borders"]))
+[part="row"][first]
+[part~="cell"]:not([part~="details-cell"]) {
+    border-top: 0;
+    min-height: calc(var(--lumo-size-xxs) - var(--_lumo-grid-border-width));
+}
+
+/* Header */
+:host [part~="header-cell"] {
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--lumo-secondary-text-color);
+    font-weight: 600;
+}
+
+/* Hover */
+:host [part~="row"]:hover [part~="cell"] {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* WARNING */
+:host [part~="warning"] {
+    background-color: rgba(255, 193, 7, 0.14);
+    color: var(--lumo-body-text-color);
+}
+
+/* ERROR */
+:host [part~="error"] {
+    background-color: rgba(220, 53, 69, 0.18);
+    color: var(--lumo-body-text-color);
+}
+
+/* optional etwas stärkere linke Markierung */
+:host [part~="warning"]:first-child {
+    box-shadow: inset 4px 0 0 rgba(255, 193, 7, 0.95);
+}
+
+:host [part~="error"]:first-child {
+    box-shadow: inset 4px 0 0 rgba(220, 53, 69, 0.95);
+}
+
+/* ProgressBar */
+vaadin-progress-bar {
+    --vaadin-progress-background: rgba(255, 255, 255, 0.08);
+    --vaadin-progress-value-background: var(--lumo-primary-color);
+    height: 8px;
+    border-radius: 999px;
+    min-width: 140px;
+}
