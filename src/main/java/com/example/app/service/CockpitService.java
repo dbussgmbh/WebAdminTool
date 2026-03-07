@@ -256,8 +256,7 @@ public class CockpitService {
 
             return tableCount > 0;
         } catch (Exception e) {
-            System.out.println("Exception while checking table existence: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Exception while checking table existence: " + e.getMessage());
             return false;
         }
     }
@@ -266,6 +265,12 @@ public class CockpitService {
 
         String tableName = "FVM_MONITOR_ALERTING";
         JdbcTemplate jdbcTemplate = getNewJdbcTemplateWithDatabase(configuration);
+
+        if(jdbcTemplate == null){
+            logger.error("jdbcTemplate konnte nicht initialisiert werden für User " + configuration.getUserName());
+            return;
+        }
+
         try {
           //  connectWithDatabase(configuration);
 
@@ -279,6 +284,7 @@ public class CockpitService {
 //            String dropTableSQL = "DROP TABLE \"" + schema + "\".\"" + tableName.toUpperCase() + "\"";
 //            jdbcTemplate.execute(dropTableSQL);
 
+            logger.info("Check ob Tabelle " + tableName + " bereits vorhanden ist...");
             if (!tableExists(tableName, dbType, jdbcTemplate)) {
                 logger.info("Creating table: " + tableName);
 
@@ -358,15 +364,16 @@ public class CockpitService {
         int maxParallel = 0;
         JdbcTemplate jdbcTemplate = getJdbcTemplateWithDBConnetion(configuration);
         try {
-            System.out.println(configuration.getUserName()+"+++++++++++++++++++++++----------------");
+            logger.info("fetchMaxParallel: SELECT MAX_PARALLEL_CHECKS FROM FVM_MONITOR_ALERTING");
             String sql = "SELECT MAX_PARALLEL_CHECKS FROM FVM_MONITOR_ALERTING";
 
             maxParallel = jdbcTemplate.queryForObject(sql, Integer.class);
 
+            logger.info("fetchMaxParallel= " + maxParallel);
             return maxParallel;
         } catch (Exception e) {
            // e.printStackTrace();
-            logger.error("fetchMaxParallel: "+e.getMessage());
+            logger.error("fetchMaxParallel liefert Fehler: "+e.getMessage());
         } finally {
             connectionClose(jdbcTemplate);
         }
@@ -374,6 +381,12 @@ public class CockpitService {
     }
     public MonitorAlerting fetchEmailConfiguration(Configuration configuration) {
         JdbcTemplate jdbcTemplate = getNewJdbcTemplateWithDatabase(configuration);
+
+        if (jdbcTemplate == null){
+            logger.error("jdbcTemplate konnte nicht initialisiert werden für User " + configuration.getUserName());
+            return null;
+        }
+
         MonitorAlerting monitorAlerting = new MonitorAlerting();
         try {
             logger.info("fetechEmailConfiguration for " + configuration.getName() );

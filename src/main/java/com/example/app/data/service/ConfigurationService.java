@@ -142,6 +142,7 @@ public class ConfigurationService {
 
             HikariConfig hikariConfig = new HikariConfig();
             logger.error("Configuration username: " + config.getUserName() + " is database URL :"+config.getDb_Url());
+            logger.error("Configuration password: " + config.getPassword() ) ;
             if (config.getDb_Url() == null || config.getDb_Url().isEmpty()) {
                 logger.error("Configuration username : " + config.getUserName() + " is missing the database URL.");
                 return;

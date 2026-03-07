@@ -576,6 +576,12 @@ public class CockpitView extends VerticalLayout{
 
         comboBox.addValueChangeListener(event -> {
 
+            if (comboBox.getValue() == null)
+            {
+                logger.info("Keine DB ausgewählt");
+                return;
+            }
+
             //save value to local web storage
             WebStorage.setItem(WebStorage.Storage.SESSION_STORAGE,"CockpitVerbindungId", ""+comboBox.getValue().getId());
 
@@ -666,8 +672,18 @@ public class CockpitView extends VerticalLayout{
             System.out.println("Konfig-Dialog aufrufen");
             emailConfigurationDialog();
         });
-        cockpitService.createFvmMonitorAlertingTable(comboBox.getValue());
-        MonitorAlerting  monitorAlerting = cockpitService.fetchEmailConfiguration(comboBox.getValue());
+
+        MonitorAlerting  monitorAlerting=new MonitorAlerting();
+
+        if (comboBox.getValue() == null)
+        {
+           logger.info("Keine DB ausgewählt");
+        }
+        else {
+            cockpitService.createFvmMonitorAlertingTable(comboBox.getValue());
+            monitorAlerting = cockpitService.fetchEmailConfiguration(comboBox.getValue());
+        }
+
 
         if (monitorAlerting != null && monitorAlerting.getIsActive() != null && monitorAlerting.getIsActive() != 0) {
             setAlerting("On");
