@@ -5,6 +5,7 @@ import com.example.app.data.service.ConfigurationService;
 import com.example.app.service.CockpitService;
 import com.vaadin.flow.component.dependency.StyleSheet;
 import com.vaadin.flow.component.page.AppShellConfigurator;
+import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
 import com.zaxxer.hikari.HikariDataSource;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Push
 @StyleSheet(Lumo.STYLESHEET)
 @SpringBootApplication
 public class Application implements AppShellConfigurator {
@@ -40,7 +42,7 @@ public class Application implements AppShellConfigurator {
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
 
-      //  initializePools();
+        initializePools();
 
     }
 

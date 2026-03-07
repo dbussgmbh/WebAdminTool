@@ -1,5 +1,6 @@
 package com.example.app.data.entity;
 
+import com.example.app.utils.AesPasswordUtil;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,18 +36,15 @@ public class Configuration {
     @Column(name = "ACCESS_ROLES")
     private String access_roles;
 
-    // Method to encode a password to Base64
-    // Method to encode a password to URL-safe Base64
-    public static String encodePassword(String plainTextPassword) {
-        return Base64.getUrlEncoder().encodeToString(plainTextPassword.getBytes());
+    public static boolean isEncryptedPassword(String value) {
+        return AesPasswordUtil.isEncrypted(value);
     }
 
-    // Method to decode a password from URL-safe Base64
-    public static String decodePassword(String encodedPassword) {
-        if (encodedPassword == null || encodedPassword.trim().isEmpty()) {
-           return encodedPassword;
-        }
-        byte[] decodedBytes = Base64.getUrlDecoder().decode(encodedPassword);
-        return new String(decodedBytes);
+    public static String encryptPassword(String plainPassword, String secret) {
+        return AesPasswordUtil.encrypt(plainPassword, secret);
+    }
+
+    public static String decodePassword(String storedPassword, String secret) {
+        return AesPasswordUtil.decrypt(storedPassword, secret);
     }
 }

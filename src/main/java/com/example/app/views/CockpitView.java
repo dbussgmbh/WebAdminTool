@@ -95,6 +95,10 @@ import java.util.stream.Stream;
 @Route(value = "cockpit", layout= MainLayout.class)
 @RolesAllowed({"ADMIN","FVM", "COKPIT"})
 @Menu(title = "eKP Cockpit", order =4, icon = "vaadin:cockpit")
+@CssImport(
+        themeFor = "vaadin-grid",
+        value = "./styles/styles.css"
+)
 @PreserveOnRefresh
 public class CockpitView extends VerticalLayout{
     @Autowired
@@ -351,17 +355,14 @@ public class CockpitView extends VerticalLayout{
 
     }
 
-    public JdbcTemplate getJdbcTemplateWithDBConnetion(com.example.app.data.entity.Configuration conf) {
-        DriverManagerDataSource ds = new DriverManagerDataSource();
-        ds.setUrl(conf.getDb_Url());
-        ds.setUsername(conf.getUserName());
-        ds.setPassword(com.example.app.data.entity.Configuration.decodePassword(conf.getPassword()));
+    public JdbcTemplate getJdbcTemplateWithDBConnetion(Configuration conf) {
         try {
-            jdbcTemplate.setDataSource(ds);
+            this.jdbcTemplate = cockpitService.getJdbcTemplateWithDBConnetion(conf);
+            return this.jdbcTemplate;
         } catch (Exception e) {
-            e.getMessage();
+            logger.error("Fehler beim Erzeugen des JdbcTemplate für {}", conf != null ? conf.getName() : "null", e);
+            return null;
         }
-        return null;
     }
 
     private void setAlerting(String status) {
@@ -754,31 +755,22 @@ public class CockpitView extends VerticalLayout{
 //    }
 
     private void updateTreeGrid() {
+        if (comboBox == null || comboBox.getValue() == null) {
+            logger.warn("updateTreeGrid: keine Verbindung ausgewählt");
+            return;
+        }
+
         param_Liste = cockpitService.getMonitoring(comboBox.getValue());
-      //  System.out.println(param_Liste.size()+"............fffffffffffffffffffffffffff");
-        if(param_Liste != null) {
+        if (param_Liste != null) {
             List<fvm_monitoring> rootItems = cockpitService.getRootMonitor(param_Liste);
-            treeGrid.setItems(rootItems, cockpitService ::getChildMonitor);
-            logger.info("updateTreeGrid");
-
-            logger.debug("Try to expand tree...");
-       //     logger.info("Expanded-Nodes: " + expanded_nodes.size());
-            //treeGrid.expandRecursively(expanded_nodes,2);
-            //treeGrid.expand(expanded_nodes);
-            //treeGrid.scrollToIndex(1);
-            //treeGrid.scrollToEnd();
-
+            treeGrid.setItems(rootItems, cockpitService::getChildMonitor);
 
             List<fvm_monitoring> expandedItems = rootItems.stream()
                     .filter(rootItem -> expandedNodesMap.containsKey(rootItem.getID()))
                     .collect(Collectors.toList());
 
-            logger.info("Expanded-Nodes: " + expandedNodesMap.size());
-
             treeGrid.expand(expandedItems);
-
         }
-
     }
 
     private void configureTreeGrid() {
@@ -1236,8 +1228,9 @@ public class CockpitView extends VerticalLayout{
     }
     private void stopCountdown() {
         if (executor != null && !executor.isShutdown()) {
-            executor.shutdown();
+            executor.shutdownNow();
         }
+        executor = null;
     }
 
     private Duration calculateRemainingTime(Duration duration, Instant startTime) {
@@ -1247,14 +1240,21 @@ public class CockpitView extends VerticalLayout{
     }
 
     private void updateCountdownLabel(Duration remainingTime) {
-        long seconds = remainingTime.getSeconds();
-        String formattedTime = String.format("%02d", (seconds % 60));
+        long seconds = Math.max(0, remainingTime.getSeconds());
+        String formattedTime = String.format("%02d", seconds % 60);
 
-        if (remainingTime.isNegative()){
+        if (remainingTime.isZero() || remainingTime.isNegative()) {
             startTime = Instant.now();
-            updateTreeGrid();
-          //  updateGrid();
-            updateLastRefreshLabel();
+
+            try {
+                updateTreeGrid();
+                updateLastRefreshLabel();
+            } catch (Exception e) {
+                logger.error("Fehler beim Autorefresh", e);
+                Notification.show("Autorefresh Fehler: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
+            }
+
+            countdownLabel.setText("in 60 Sekunden");
             return;
         }
 
@@ -1262,15 +1262,28 @@ public class CockpitView extends VerticalLayout{
     }
 
     private void startCountdown(Duration duration) {
-        executor = Executors.newSingleThreadScheduledExecutor();
+        stopCountdown(); // wichtig, damit nicht mehrere Executor laufen
 
+        executor = Executors.newSingleThreadScheduledExecutor();
         startTime = Instant.now();
 
         executor.scheduleAtFixedRate(() -> {
-            ui.access(() -> {
-                Duration remainingTime = calculateRemainingTime(duration, startTime);
-                updateCountdownLabel(remainingTime);
-            });
+            try {
+                if (ui == null || !ui.isAttached()) {
+                    return;
+                }
+
+                ui.access(() -> {
+                    try {
+                        Duration remainingTime = calculateRemainingTime(duration, startTime);
+                        updateCountdownLabel(remainingTime);
+                    } catch (Exception e) {
+                        logger.error("Fehler in ui.access beim Countdown", e);
+                    }
+                });
+            } catch (Exception e) {
+                logger.error("Fehler im ScheduledExecutor für Autorefresh", e);
+            }
         }, 0, 1, TimeUnit.SECONDS);
     }
 
@@ -1491,32 +1504,32 @@ public class CockpitView extends VerticalLayout{
 
 
     private void refreshMonitor(Integer id) {
+        String sql = "begin parallel_proc(''," + id + "); end;";
+        logger.info("Refresh SQL: {}", sql);
 
-        String sql="begin parallel_proc(''," + id + "); end;";
-        System.out.println(sql);
-
-        DriverManagerDataSource ds = new DriverManagerDataSource();
-        Configuration conf;
-        conf = comboBox.getValue();
-
-        ds.setUrl(conf.getDb_Url());
-        ds.setUsername(conf.getUserName());
-        ds.setPassword(Configuration.decodePassword(conf.getPassword()));
-
-        try {
-
-            jdbcTemplate.setDataSource(ds);
-
-            jdbcTemplate.execute(sql);
-
-            System.out.println("Refresh ausgeführt");
-
-        } catch (Exception e) {
-            System.out.println("Exception: " + e.getMessage());
+        Configuration conf = comboBox.getValue();
+        if (conf == null) {
+            Notification.show("Keine Verbindung ausgewählt.", 3000, Notification.Position.MIDDLE);
+            return;
         }
 
-        return ;
+        JdbcTemplate localJdbcTemplate = null;
+        try {
+            localJdbcTemplate = cockpitService.getJdbcTemplateWithDBConnetion(conf);
+            if (localJdbcTemplate == null) {
+                Notification.show("Keine DB-Verbindung verfügbar.", 3000, Notification.Position.MIDDLE);
+                return;
+            }
 
+            localJdbcTemplate.execute(sql);
+            logger.info("Refresh ausgeführt für Monitor-ID {}", id);
+
+        } catch (Exception e) {
+            logger.error("Fehler bei refreshMonitor({})", id, e);
+            Notification.show("Fehler beim Refresh: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
+        } finally {
+            cockpitService.connectionClose(localJdbcTemplate);
+        }
     }
 
     public void executeImmediateShellCheck(fvm_monitoring monitoring) {
@@ -2453,25 +2466,25 @@ public class CockpitView extends VerticalLayout{
 
 
     private MonitorAlerting fetchEmailConfiguration() {
+        Configuration conf = comboBox.getValue();
+        if (conf == null) {
+            logger.info("Keine DB ausgewählt in fetchEmailConfiguration()");
+            return new MonitorAlerting();
+        }
+
         MonitorAlerting monitorAlerting = new MonitorAlerting();
+        JdbcTemplate localJdbcTemplate = null;
+
         try {
+            localJdbcTemplate = cockpitService.getJdbcTemplateWithDBConnetion(conf);
+            if (localJdbcTemplate == null) {
+                Notification.show("Failed to load configuration: keine DB-Verbindung", 5000, Notification.Position.MIDDLE);
+                return monitorAlerting;
+            }
 
-            DriverManagerDataSource ds = new DriverManagerDataSource();
-            Configuration conf;
-            conf = comboBox.getValue();
-
-            ds.setUrl(conf.getDb_Url());
-            ds.setUsername(conf.getUserName());
-            ds.setPassword(Configuration.decodePassword(conf.getPassword()));
-
-            jdbcTemplate.setDataSource(ds);
-
-            // Query to get the existing configuration
             String sql = "SELECT MAIL_EMPFAENGER, MAIL_CC_EMPFAENGER, MAIL_BETREFF, MAIL_TEXT, CRON_EXPRESSION FROM FVM_MONITOR_ALERTING";
 
-            // Use jdbcTemplate to query and map results to MonitorAlerting object
-            jdbcTemplate.query(sql, rs -> {
-                // Set the values in the MonitorAlerting object from the result set
+            localJdbcTemplate.query(sql, rs -> {
                 monitorAlerting.setMailEmpfaenger(rs.getString("MAIL_EMPFAENGER"));
                 monitorAlerting.setMailCCEmpfaenger(rs.getString("MAIL_CC_EMPFAENGER"));
                 monitorAlerting.setMailBetreff(rs.getString("MAIL_BETREFF"));
@@ -2480,9 +2493,12 @@ public class CockpitView extends VerticalLayout{
             });
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Failed to load configuration", e);
             Notification.show("Failed to load configuration: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
+        } finally {
+            cockpitService.connectionClose(localJdbcTemplate);
         }
+
         return monitorAlerting;
     }
 
@@ -2586,53 +2602,45 @@ public class CockpitView extends VerticalLayout{
     }
 
     private List<fvm_monitoring> getMonitoring() {
+        String sql = "SELECT m.ID, SQL, TITEL, BESCHREIBUNG, HANDLUNGS_INFO, CHECK_INTERVALL, WARNING_SCHWELLWERT"
+                + ", ERROR_SCHWELLWERT, mr.result as Aktueller_Wert"
+                + ", 100 / Error_schwellwert * case when mr.result>=Error_schwellwert then Error_Schwellwert else mr.result end / 100 as Error_Prozent"
+                + ", Zeitpunkt, m.is_active, m.sql_detail as sql_detail "
+                + "FROM FVM_MONITORING m "
+                + "left outer join FVM_MONITOR_RESULT mr on m.id=mr.id and mr.is_active='1'";
 
+        logger.info("Abfrage FVM_MONITORING");
 
-        //String sql = "SELECT ID, SQL, TITEL,  BESCHREIBUNG, HANDLUNGS_INFO, CHECK_INTERVALL,  WARNING_SCHWELLWERT, ERROR_SCHWELLWERT FROM EKP.FVM_MONITORING";
-
-//        String sql = "SELECT m.ID, SQL, TITEL,  BESCHREIBUNG, HANDLUNGS_INFO, CHECK_INTERVALL,  WARNING_SCHWELLWERT" +
-//                ", ERROR_SCHWELLWERT,mr.result as Aktueller_Wert, 100 / Error_schwellwert * case when mr.result>=Error_schwellwert then Error_Schwellwert else mr.result end  / 100 as Error_Prozent" +
-//                ", Zeitpunkt, m.is_active, nvl(m.sql_detail,'select ''Detail-SQL nicht definiert'' from dual') as sql_detail FROM FVM_MONITORING m\n" +
-//                "left outer join FVM_MONITOR_RESULT mr\n" +
-//                "on m.id=mr.id\n" +
-//                "and mr.is_active='1'";
-
-        String sql = "SELECT m.ID, SQL, TITEL,  BESCHREIBUNG, HANDLUNGS_INFO, CHECK_INTERVALL,  WARNING_SCHWELLWERT" +
-                ", ERROR_SCHWELLWERT,mr.result as Aktueller_Wert, 100 / Error_schwellwert * case when mr.result>=Error_schwellwert then Error_Schwellwert else mr.result end  / 100 as Error_Prozent" +
-                ", Zeitpunkt, m.is_active, m.sql_detail as sql_detail FROM FVM_MONITORING m\n" +
-                "left outer join FVM_MONITOR_RESULT mr\n" +
-                "on m.id=mr.id\n" +
-                "and mr.is_active='1'";
-
-        System.out.println("Abfrage EKP.FVM_Monitoring (CockpitView.java): ");
-        System.out.println(sql);
-
-        DriverManagerDataSource ds = new DriverManagerDataSource();
-        Configuration conf;
-        conf = comboBox.getValue();
-
-        ds.setUrl(conf.getDb_Url());
-        ds.setUsername(conf.getUserName());
-        ds.setPassword(Configuration.decodePassword(conf.getPassword()));
-
-        try {
-
-            jdbcTemplate.setDataSource(ds);
-
-            monitore = jdbcTemplate.query(
-                    sql,
-                    new BeanPropertyRowMapper(fvm_monitoring.class));
-
-
-
-            System.out.println("FVM_Monitoring eingelesen");
-
-        } catch (Exception e) {
-            Notification.show("Error: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
-            System.out.println("Exception: " + e.getMessage());
+        Configuration conf = comboBox.getValue();
+        if (conf == null) {
+            Notification.show("Keine Verbindung ausgewählt.", 3000, Notification.Position.MIDDLE);
+            return Collections.emptyList();
         }
 
-        return monitore;
+        JdbcTemplate localJdbcTemplate = null;
+
+        try {
+            localJdbcTemplate = cockpitService.getJdbcTemplateWithDBConnetion(conf);
+            if (localJdbcTemplate == null) {
+                Notification.show("Keine DB-Verbindung verfügbar.", 3000, Notification.Position.MIDDLE);
+                return Collections.emptyList();
+            }
+
+            monitore = localJdbcTemplate.query(
+                    sql,
+                    new BeanPropertyRowMapper<>(fvm_monitoring.class)
+            );
+
+            logger.info("FVM_MONITORING eingelesen");
+            return monitore;
+
+        } catch (Exception e) {
+            logger.error("Fehler beim Laden von FVM_MONITORING", e);
+            Notification.show("Error: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
+            return Collections.emptyList();
+        } finally {
+            cockpitService.connectionClose(localJdbcTemplate);
+        }
     }
 
 
