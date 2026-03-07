@@ -13,12 +13,14 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 @Route(value = "admin/users", layout = MainLayout.class)
 @PageTitle("Benutzerverwaltung")
+@Menu(title = "Benutzerverwaltung", order = 100, icon = "vaadin:users")
 @RolesAllowed("ADMIN")
 public class AdminUserView extends VerticalLayout {
 

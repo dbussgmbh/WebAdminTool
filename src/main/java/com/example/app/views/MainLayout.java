@@ -1,12 +1,12 @@
 package com.example.app.views;
 
-import com.example.app.views.admin.AdminUserView;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -14,19 +14,23 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
 import com.vaadin.flow.spring.security.AuthenticationContext;
+import com.vaadin.flow.server.menu.MenuConfiguration;
+import com.vaadin.flow.server.menu.MenuEntry;
 import jakarta.annotation.security.PermitAll;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 @PermitAll
 public class MainLayout extends AppLayout {
 
     private final AuthenticationContext authenticationContext;
+    private final Button themeToggle = new Button();
 
     public MainLayout(AuthenticationContext authenticationContext) {
         this.authenticationContext = authenticationContext;
+
         createHeader();
         createDrawer();
+        updateThemeButton();
     }
 
     private void createHeader() {
@@ -41,30 +45,29 @@ public class MainLayout extends AppLayout {
 
         Span userLabel = new Span("Angemeldet: " + username);
 
+        themeToggle.addClickListener(event -> {
+            UI ui = UI.getCurrent();
+            if (ui.getElement().getThemeList().contains("dark")) {
+                ui.getElement().getThemeList().remove("dark");
+            } else {
+                ui.getElement().getThemeList().add("dark");
+            }
+            updateThemeButton();
+        });
+
         Button logout = new Button(
                 "Logout",
                 VaadinIcon.SIGN_OUT.create(),
                 event -> authenticationContext.logout()
         );
 
-        Button themeToggle = new Button();
-
-        themeToggle.addClickListener(event -> {
-            UI ui = UI.getCurrent();
-            boolean dark = ui.getElement().getThemeList().contains("dark");
-
-            if (dark) {
-                ui.getElement().getThemeList().remove("dark");
-                themeToggle.setIcon(VaadinIcon.MOON.create());
-            } else {
-                ui.getElement().getThemeList().add("dark");
-                themeToggle.setIcon(VaadinIcon.SUN_O.create());
-            }
-        });
-
-        themeToggle.setIcon(VaadinIcon.MOON.create());
-
-        HorizontalLayout header = new HorizontalLayout(drawerToggle, title, themeToggle, userLabel, logout);
+        HorizontalLayout header = new HorizontalLayout(
+                drawerToggle,
+                title,
+                themeToggle,
+                userLabel,
+                logout
+        );
         header.setWidthFull();
         header.expand(title);
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
@@ -74,16 +77,15 @@ public class MainLayout extends AppLayout {
     }
 
     private void createDrawer() {
-        SideNav sideNav = new SideNav();
-        sideNav.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));
-        sideNav.addItem(new SideNavItem("Berichte", ReportsView.class, VaadinIcon.CHART.create()));
-        sideNav.addItem(new SideNavItem("Einstellungen", SettingsView.class, VaadinIcon.COG.create()));
+        SideNav nav = new SideNav();
 
-        if (isAdmin()) {
-            sideNav.addItem(new SideNavItem("Benutzerverwaltung", AdminUserView.class, VaadinIcon.USERS.create()));
-        }
+        MenuConfiguration.getMenuEntries()
+                .stream()
+                .sorted((a, b) -> Double.compare(a.order(), b.order()))
+                .map(this::createSideNavItem)
+                .forEach(nav::addItem);
 
-        VerticalLayout drawer = new VerticalLayout(sideNav);
+        VerticalLayout drawer = new VerticalLayout(nav);
         drawer.setSizeFull();
         drawer.setPadding(false);
         drawer.setSpacing(false);
@@ -91,11 +93,22 @@ public class MainLayout extends AppLayout {
         addToDrawer(drawer);
     }
 
-    private boolean isAdmin() {
-        return authenticationContext.getAuthenticatedUser(UserDetails.class)
-                .map(user -> user.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .anyMatch("ROLE_ADMIN"::equals))
-                .orElse(false);
+    private SideNavItem createSideNavItem(MenuEntry menuEntry) {
+        SideNavItem item = new SideNavItem(menuEntry.title(), menuEntry.path());
+        item.setMatchNested(true);
+
+        if (menuEntry.icon() != null && !menuEntry.icon().isBlank()) {
+            item.setPrefixComponent(new Icon(menuEntry.icon()));
+        }
+
+        return item;
+    }
+
+    private void updateThemeButton() {
+        boolean dark = UI.getCurrent() != null
+                && UI.getCurrent().getElement().getThemeList().contains("dark");
+
+        themeToggle.setText(dark ? "Hell" : "Dunkel");
+        themeToggle.setIcon(dark ? VaadinIcon.SUN_O.create() : VaadinIcon.MOON_O.create());
     }
 }
