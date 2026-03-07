@@ -1,6 +1,7 @@
 package com.example.app.views;
 
 import com.example.app.views.admin.AdminUserView;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
@@ -46,7 +47,24 @@ public class MainLayout extends AppLayout {
                 event -> authenticationContext.logout()
         );
 
-        HorizontalLayout header = new HorizontalLayout(drawerToggle, title, userLabel, logout);
+        Button themeToggle = new Button();
+
+        themeToggle.addClickListener(event -> {
+            UI ui = UI.getCurrent();
+            boolean dark = ui.getElement().getThemeList().contains("dark");
+
+            if (dark) {
+                ui.getElement().getThemeList().remove("dark");
+                themeToggle.setIcon(VaadinIcon.MOON.create());
+            } else {
+                ui.getElement().getThemeList().add("dark");
+                themeToggle.setIcon(VaadinIcon.SUN_O.create());
+            }
+        });
+
+        themeToggle.setIcon(VaadinIcon.MOON.create());
+
+        HorizontalLayout header = new HorizontalLayout(drawerToggle, title, themeToggle, userLabel, logout);
         header.setWidthFull();
         header.expand(title);
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
