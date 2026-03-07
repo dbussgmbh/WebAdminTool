@@ -1,0 +1,26 @@
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Maven
+/target/
+**/target/
+
+# Node
+/node_modules/
+**/node_modules/
+
+# Vaadin generated
+/frontend/generated/
+**/frontend/generated/
+
+# logs
+*.log
+
+# env
+.env
+
+# OS
+.DS_Store
+Thumbs.db
