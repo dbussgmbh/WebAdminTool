@@ -95,10 +95,7 @@ import java.util.stream.Stream;
 @Route(value = "cockpit", layout= MainLayout.class)
 @RolesAllowed({"ADMIN","FVM", "COKPIT"})
 @Menu(title = "eKP Cockpit", order =4, icon = "vaadin:cockpit")
-@CssImport(
-        themeFor = "vaadin-grid",
-        value = "./styles/styles.css"
-)
+
 @PreserveOnRefresh
 public class CockpitView extends VerticalLayout{
     @Autowired

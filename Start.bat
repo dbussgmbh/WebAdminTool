@@ -1,4 +1,6 @@
 @echo off
+rem mvn clean package -Pproduction
+
 echo Lade .env Konfiguration...
 
 REM .env Datei einlesen

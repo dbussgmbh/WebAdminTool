@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 @Push
-@StyleSheet(Lumo.STYLESHEET)
+@Theme("my-theme")
 @SpringBootApplication
 public class Application implements AppShellConfigurator {
 

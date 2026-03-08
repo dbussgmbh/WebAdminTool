@@ -1,0 +1,15 @@
+/* globale Theme-Datei */
+
+vaadin-grid::part(warning) {
+    background: linear-gradient(rgba(255, 193, 7, 0.18), rgba(255, 193, 7, 0.18)) var(--lumo-base-color);
+}
+
+vaadin-grid::part(error) {
+    background: linear-gradient(rgba(220, 53, 69, 0.18), rgba(220, 53, 69, 0.18)) var(--lumo-base-color);
+}
+
+/* optional für dark theme etwas besser lesbar */
+vaadin-grid::part(warning),
+vaadin-grid::part(error) {
+    color: var(--lumo-body-text-color);
+}
