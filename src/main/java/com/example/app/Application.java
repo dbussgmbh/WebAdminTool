@@ -47,20 +47,24 @@ public class Application implements AppShellConfigurator {
     }
 
     private void initializePools() {
-        logger.info("initializePools(): initialize confifuration hikari-pools");
+        logger.info("initializePools(): initialize configuration Hikari-Pools");
         List<Configuration> configurations = configurationService.findMessageConfigurations();
 
         for (Configuration config : configurations) {
+            //Für alle Configeinträge, die überwacht werden sollen, Poolsize anhand MAX_PARALLEL_CHECKS in Tabelle FVM_MONITOR_ALERTING ermitteln.
+            if (config.getIsMonitoring()==1){
             int maximumPoolSize  = cockpitService.fetchMaxParallel(config);
             maximumPoolSize = ( maximumPoolSize > 0) ? maximumPoolSize : 1;
             maxPoolsizeMap.put(config.getId(), maximumPoolSize);
             managePoolForConfiguration(config);
+            }
         }
-        System.out.println("Count Hikari Pools: " + configurationService.getActivePools().size());
+        logger.info("Count in Hikari Pool: " + configurationService.getActivePools().size());
+
         for (Map.Entry<Long, HikariDataSource> entry : configurationService.getActivePools().entrySet()) {
             HikariDataSource dataSource = entry.getValue();
             String poolName = dataSource.getPoolName();
-            System.out.println("Pool ID: " + entry.getKey() + ", Pool Name: " + poolName);
+            logger.info("Pool ID: " + entry.getKey() + ", Pool Name: " + poolName);
         }
     }
 

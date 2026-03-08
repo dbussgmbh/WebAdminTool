@@ -57,6 +57,7 @@ public class CockpitService {
         DriverManagerDataSource ds = new DriverManagerDataSource();
         ds.setUrl(conf.getDb_Url());
         ds.setUsername(conf.getUserName());
+        logger.info("Entschlüssel Passwort für Conf: " + conf.getName() + " (User " + conf.getUserName() + ")");
 
         String plainPassword = configurationService.getPlainPasswordAndMigrateIfNeeded(conf);
         ds.setPassword(plainPassword);
@@ -83,6 +84,7 @@ public class CockpitService {
         } catch (Exception e) {
             logger.error("Error while creating JdbcTemplate for {}", conf.getName(), e);
         }
+        logger.error("Fehler in CockpitService bei getActivePools für DB: {}",conf.getName());
         return null;
     }
 
@@ -267,14 +269,14 @@ public class CockpitService {
         int maxParallel = 0;
         JdbcTemplate jdbcTemplate = getJdbcTemplateWithDBConnetion(configuration);
         try {
-            logger.info("fetchMaxParallel: SELECT MAX_PARALLEL_CHECKS FROM FVM_MONITOR_ALERTING");
             String sql = "SELECT MAX_PARALLEL_CHECKS FROM FVM_MONITOR_ALERTING";
-
+            logger.info("Ausführen SQL: " + sql);
+            logger.info("In Verbindung: " + configuration.getName());
             maxParallel = jdbcTemplate.queryForObject(sql, Integer.class);
             logger.info("fetchMaxParallel= {}", maxParallel);
             return maxParallel;
         } catch (Exception e) {
-            logger.error("fetchMaxParallel liefert Fehler: {}", e.getMessage(), e);
+            logger.error("fetchMaxParallel ist leider fehlgeschlagen: {}", e.getMessage(), e);
         } finally {
             connectionClose(jdbcTemplate);
         }

@@ -217,8 +217,17 @@ public class ConfigurationService {
             return storedPassword;
         }
 
+        String pw="";
         if (Configuration.isEncryptedPassword(storedPassword)) {
-            return Configuration.decodePassword(storedPassword, aesSecret);
+            try{
+                pw=Configuration.decodePassword(storedPassword, aesSecret);
+            }
+            catch(Exception e){
+                logger.error(e.getMessage());
+                return pw;
+            }
+
+            return pw;
         }
 
         logger.warn("Plaintext password found for configuration ID {}. Migrating to AES encryption.", config.getId());
