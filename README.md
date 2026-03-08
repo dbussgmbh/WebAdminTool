@@ -5,8 +5,5 @@ Der DB-Zugriff läuft über `NamedParameterJdbcTemplate` und echte SQL-Abfragen.
 
 Vor dem Start bitte `sql/init.sql` in Oracle ausführen.
 
-Start:
-```bash
-docker compose up -d
-mvn clean spring-boot:run
-```
+mvn clean package -Pproduction
+C:\Java\jdk22\bin\java -jar target/vaadin-oracle-user-management-sql-0.0.1-SNAPSHOT.jar
